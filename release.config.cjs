@@ -204,7 +204,9 @@ module.exports = {
           { type: "fix", release: "patch" },
           { type: "perf", release: "patch" },
           { type: "docs", scope: "README", release: "patch" },
-          { type: "docs", release: false },
+          { type: "docs", scope: "readme", release: "patch" },
+          { type: "docs", scope: "README.md", release: "patch" },
+          { type: "docs", scope: "readme.md", release: "patch" },
           { type: "style", release: false },
           { type: "refactor", release: "patch" },
           { type: "test", release: false },
@@ -278,6 +280,7 @@ module.exports = {
         message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
-    "semantic-release-major-tag"
+    "semantic-release-major-tag",
+    "./scripts/semrel-status.cjs"
   ]
 };
