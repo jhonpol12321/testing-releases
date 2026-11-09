@@ -90,7 +90,13 @@ const commitMessage = rawCommitMessage
   .slice(0, 500)
   .replace(/`/g, "'");
 
-// Detect source branch from PR merge or API
+// ---------------------------------------------------------------------------
+// Branch Resolution Strategy:
+// Resolves the originating feature/PR branch when merged into main/release branches.
+// 1. Checks explicit SOURCE_BRANCH from CI workflow environment.
+// 2. Parses default git merge messages from GitHub, GitLab, and Bitbucket.
+// 3. Queries GitHub REST API as a resilient fallback if GITHUB_TOKEN is provided.
+// ---------------------------------------------------------------------------
 let sourceBranch = SOURCE_BRANCH || null;
 let prNumber = null;
 
