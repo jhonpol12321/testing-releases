@@ -23,7 +23,7 @@ jobs:
   release:
     name: Semantic release
     runs-on: ubuntu-latest
-    if: github.repository == 'OWNER/REPOSITORY'
+    if: github.repository == 'jhonpol12321/testing-releases'
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
