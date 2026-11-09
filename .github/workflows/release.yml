@@ -45,27 +45,110 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+
       - name: Notify Slack
-        if: success()
+        if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           REPOSITORY: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
           SERVER_URL: ${{ github.server_url }}
           COMMIT_SHA: ${{ github.sha }}
+          JOB_STATUS: ${{ job.status }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           node <<'NODE'
-          const payload = {
-            text: `🚀 Release workflow succeeded for ${process.env.REPOSITORY} on ${process.env.REF_NAME}.\nCommit: ${process.env.SERVER_URL}/${process.env.REPOSITORY}/commit/${process.env.COMMIT_SHA}`
-          };
+          (async () => {
+            const {
+              SLACK_WEBHOOK_URL,
+              REPOSITORY,
+              REF_NAME,
+              SERVER_URL,
+              COMMIT_SHA,
+              JOB_STATUS,
+              ACTOR,
+              RUN_URL
+            } = process.env;
 
-          const response = await fetch(process.env.SLACK_WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            const success = JOB_STATUS === "success";
+            const cancelled = JOB_STATUS === "cancelled";
+
+            const status = success
+              ? { emoji: ":rocket:", title: "Release Successfully Published", color: "#2EB67D" }
+              : cancelled
+                ? { emoji: ":warning:", title: "Release Cancelled", color: "#ECB22E" }
+                : { emoji: ":red_circle:", title: "Release Failed", color: "#E01E5A" };
+
+            const repositoryUrl = `${SERVER_URL}/${REPOSITORY}`;
+            const commitUrl = `${repositoryUrl}/commit/${COMMIT_SHA}`;
+
+            const payload = {
+              text: `${status.emoji} ${status.title}: ${REPOSITORY} (${REF_NAME})`,
+              attachments: [
+                {
+                  color: status.color,
+                  blocks: [
+                    {
+                      type: "header",
+                      text: {
+                        type: "plain_text",
+                        text: `${status.emoji} ${status.title}`,
+                        emoji: true
+                      }
+                    },
+                    {
+                      type: "section",
+                      text: {
+                        type: "mrkdwn",
+                        text: [
+                          `*Repository:* <${repositoryUrl}|${REPOSITORY}>`,
+                          `*Branch / Ref:* \`${REF_NAME}\``,
+                          `*Commit:* <${commitUrl}|\`${COMMIT_SHA.slice(0, 7)}\`>`,
+                          `*Triggered by:* ${ACTOR}`
+                        ].join("\n")
+                      }
+                    },
+                    {
+                      type: "actions",
+                      elements: [
+                        {
+                          type: "button",
+                          text: {
+                            type: "plain_text",
+                            text: "View Workflow Run"
+                          },
+                          url: RUN_URL,
+                          style: success ? "primary" : "danger"
+                        },
+                        {
+                          type: "button",
+                          text: {
+                            type: "plain_text",
+                            text: "View Commit"
+                          },
+                          url: commitUrl
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            };
+
+            const response = await fetch(SLACK_WEBHOOK_URL, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+              signal: AbortSignal.timeout(10000)
+            });
+
+            if (!response.ok) {
+              throw new Error(`Slack notification failed: ${response.status} ${await response.text()}`);
+            }
+          })().catch(error => {
+            console.error(error);
+            process.exitCode = 1;
           });
-
-          if (!response.ok) {
-            throw new Error(`Slack notification failed: ${response.status}`);
-          }
           NODE
+
