@@ -50,10 +50,12 @@ jobs:
       - name: Notify Slack
         if: always()
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           REPOSITORY: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
           TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
+          SOURCE_BRANCH: ${{ github.event.pull_request.head.ref || '' }}
           COMMIT_SHA: ${{ github.sha }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.event.commits[0].message || 'Manual execution / No commit message available' }}
           SERVER_URL: ${{ github.server_url }}

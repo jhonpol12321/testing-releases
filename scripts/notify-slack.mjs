@@ -5,13 +5,15 @@ const {
   REPOSITORY = 'unknown-repo',
   REF_NAME,
   TARGET_BRANCH,
+  SOURCE_BRANCH,
   COMMIT_SHA = '0000000',
   COMMIT_MESSAGE,
   SERVER_URL = 'https://github.com',
   COMMIT_URL,
   JOB_STATUS,
   ACTOR,
-  RUN_URL
+  RUN_URL,
+  GITHUB_TOKEN
 } = process.env;
 
 if (!SLACK_WEBHOOK_URL) {
@@ -82,10 +84,55 @@ const escapeSlack = (value = '') =>
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 
-const commitMessage = (COMMIT_MESSAGE || 'No commit message available')
+const rawCommitMessage = COMMIT_MESSAGE || 'No commit message available';
+const commitMessage = rawCommitMessage
   .split('\n')[0]
   .slice(0, 500)
   .replace(/`/g, "'");
+
+// Detect source branch from PR merge or API
+let sourceBranch = SOURCE_BRANCH || null;
+let prNumber = null;
+
+if (!sourceBranch && rawCommitMessage) {
+  // Pattern A: GitHub merge commit: "Merge pull request #1 from owner/feature-branch"
+  const ghMerge = rawCommitMessage.match(/Merge pull request #(\d+) from (?:[^\s/]+\/)?([^\s\n]+)/i);
+  if (ghMerge) {
+    prNumber = ghMerge[1];
+    sourceBranch = ghMerge[2];
+  } else {
+    // Pattern B: GitLab/Git merge: "Merge branch 'feature-branch' into 'target'"
+    const glMerge = rawCommitMessage.match(/Merge branch '([^']+)'(?: into '([^']+)')?/i);
+    if (glMerge) {
+      sourceBranch = glMerge[1];
+    }
+  }
+}
+
+// Fallback: Query GitHub API if token is provided and source branch is not yet resolved
+if (!sourceBranch && GITHUB_TOKEN && REPOSITORY && REPOSITORY !== 'unknown-repo' && COMMIT_SHA) {
+  try {
+    const apiRes = await fetch(`https://api.github.com/repos/${REPOSITORY}/commits/${COMMIT_SHA}/pulls`, {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'notify-slack'
+      },
+      signal: AbortSignal.timeout(3000)
+    });
+    if (apiRes.ok) {
+      const pulls = await apiRes.json();
+      if (Array.isArray(pulls) && pulls.length > 0 && pulls[0].head?.ref) {
+        sourceBranch = pulls[0].head.ref;
+        if (!prNumber && pulls[0].number) {
+          prNumber = String(pulls[0].number);
+        }
+      }
+    }
+  } catch (_) {
+    // Fallback silently if API call fails
+  }
+}
 
 const actionElements = [];
 
@@ -122,11 +169,21 @@ if (hasPublishedRelease && releaseInfo.gitTag) {
 }
 
 const sectionLines = [
-  `*Repository:* <${repositoryUrl}|${escapeSlack(REPOSITORY)}>`,
-  `*Target Branch:* \`${escapeSlack(effectiveBranch)}\``,
-  `*Commit:* <${commitUrl}|\`${COMMIT_SHA.slice(0, 7)} — ${escapeSlack(commitMessage)}\`>`,
-  `*Triggered by:* ${escapeSlack(ACTOR || 'CI System')}`
+  `*Repository:* <${repositoryUrl}|${escapeSlack(REPOSITORY)}>`
 ];
+
+// If changes originated from a PR/source branch, show Target Branch and Triggered Ref distinctly.
+// If direct push (no PR/source branch), show single Branch line to prevent repeating main twice.
+if (sourceBranch && sourceBranch !== effectiveBranch) {
+  sectionLines.push(`*Target Branch:* \`${escapeSlack(effectiveBranch)}\``);
+  sectionLines.push(`*Triggered Ref:* \`${escapeSlack(sourceBranch)}\``);
+} else {
+  sectionLines.push(`*Branch:* \`${escapeSlack(effectiveBranch)}\``);
+}
+
+// Keep the commit link on the message and the SHA on the right separated with code formatting (not a link)
+sectionLines.push(`*Commit:* <${commitUrl}|${escapeSlack(commitMessage)}> — \`${COMMIT_SHA.slice(0, 7)}\``);
+sectionLines.push(`*Triggered by:* ${escapeSlack(ACTOR || 'CI System')}`);
 
 if (statusConfig.note) {
   sectionLines.push(`*Status Note:* ${statusConfig.note}`);
