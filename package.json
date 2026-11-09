@@ -1,4 +1,5 @@
 {
+	"name": "SemRel Test",
 	"scripts": {
 		 "test": "node -e \"console.log('No tests configured')\""
 	},
