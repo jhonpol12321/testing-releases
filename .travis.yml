@@ -1,0 +1,29 @@
+language: node_js
+
+node_js:
+  - 22
+
+os: linux
+dist: noble
+
+git:
+  depth: false
+
+if: >
+  type IN (push, api) AND
+  branch IN (main, next, beta, 1.x) AND
+  commit_message !~ /skip ci/
+
+install:
+  - corepack enable
+  - pnpm install --frozen-lockfile
+
+script:
+  - pnpm test
+  - pnpm exec semantic-release
+
+after_success:
+  - bash scripts/notify-slack-travis.sh success
+
+after_failure:
+  - bash scripts/notify-slack-travis.sh failed
