@@ -2,7 +2,7 @@
 	"scripts": {
 		 "test": "node -e \"console.log('No tests configured')\""
 	},
-	"packageManager": "pnpm@10.0.0"
+	"packageManager": "pnpm@10.0.0",
 	"devDependencies": {
 		"@semantic-release/changelog": "^7.0.0",
 		"@semantic-release/commit-analyzer": "^13.0.1",
