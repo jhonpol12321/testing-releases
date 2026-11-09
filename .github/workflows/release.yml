@@ -114,7 +114,7 @@ jobs:
                           `*Repository:* <${repositoryUrl}|${REPOSITORY}>`,
                           `*Target Branch:* \`${TARGET_BRANCH}\``,
                           `*Triggered Ref:* \`${REF_NAME}\``,
-                          `*Commit:* <${commitUrl}|\`${COMMIT_SHA.slice(0, 7)} — ${commitMessage}\`>`,
+                          `*Commit:* <${commitUrl}|${commitMessage}> — \`${COMMIT_SHA.slice(0, 7)}\``
                           `*Triggered by:* ${ACTOR}`
                         ].join("\n")
                       }
