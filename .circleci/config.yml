@@ -1,0 +1,62 @@
+version: 2.1
+
+jobs:
+  release:
+    docker:
+      - image: cimg/node:22.16
+
+    resource_class: medium
+
+    steps:
+      - checkout
+
+      - run:
+          name: Release
+          command: |
+            set -Eeuo pipefail
+
+            if git log -1 --pretty=%B | grep -qi 'skip ci'; then
+              echo "Skipping CI."
+              exit 0
+            fi
+
+            git fetch --tags --force
+
+            export REPOSITORY="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+            export REF_NAME="${CIRCLE_BRANCH}"
+            export TARGET_BRANCH="${CIRCLE_BRANCH}"
+            export COMMIT_SHA="${CIRCLE_SHA1}"
+            export COMMIT_MESSAGE="$(git log -1 --pretty=%B)"
+            export SERVER_URL="https://github.com"
+            export ACTOR="CircleCI"
+            export RUN_URL="${CIRCLE_BUILD_URL}"
+
+            trap '
+              result=$?
+
+              if [ "$result" -eq 0 ]; then
+                export JOB_STATUS="success"
+              else
+                export JOB_STATUS="failed"
+              fi
+
+              node scripts/notify-slack.mjs || true
+              exit "$result"
+            ' EXIT
+
+            corepack enable
+            pnpm install --frozen-lockfile
+            pnpm test
+            pnpm exec semantic-release
+
+workflows:
+  release:
+    jobs:
+      - release:
+          filters:
+            branches:
+              only:
+                - main
+                - next
+                - beta
+                - 1.x

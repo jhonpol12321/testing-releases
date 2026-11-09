@@ -1,0 +1,42 @@
+
+workflow:
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /skip ci/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^(main|next|beta|1\.x)$/'
+      when: always
+    - when: never
+
+image: node:22-bookworm
+
+variables:
+  GIT_DEPTH: "0"
+  GIT_STRATEGY: clone
+
+release:
+  stage: test
+  before_script:
+    - corepack enable
+  script:
+    - pnpm install --frozen-lockfile
+    - pnpm test
+    - pnpm exec semantic-release
+  after_script:
+    - node scripts/notify-slack.mjs
+  variables:
+    GITHUB_TOKEN: $GITHUB_TOKEN
+    SLACK_WEBHOOK_URL: $SLACK_WEBHOOK_URL
+    REPOSITORY: "jhonpol12321/testing-releases"
+    REF_NAME: $CI_COMMIT_REF_NAME
+    TARGET_BRANCH: $CI_COMMIT_REF_NAME
+    COMMIT_SHA: $CI_COMMIT_SHA
+    COMMIT_MESSAGE: $CI_COMMIT_MESSAGE
+    SERVER_URL: "https://github.com"
+    JOB_STATUS: $CI_JOB_STATUS
+    ACTOR: $GITLAB_USER_LOGIN
+    RUN_URL: $CI_PIPELINE_URL
+  rules:
+    - if: '$CI_COMMIT_MESSAGE =~ /skip ci/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^(main|next|beta|1\.x)$/'
+      when: on_success
