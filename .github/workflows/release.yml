@@ -46,14 +46,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
+
       - name: Notify Slack
         if: always()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           REPOSITORY: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
-          SERVER_URL: ${{ github.server_url }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref || github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message || github.event.commits[0].message || 'Manual execution / No commit message available' }}
+          SERVER_URL: ${{ github.server_url }}
           JOB_STATUS: ${{ job.status }}
           ACTOR: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -64,8 +67,10 @@ jobs:
               SLACK_WEBHOOK_URL,
               REPOSITORY,
               REF_NAME,
-              SERVER_URL,
+              TARGET_BRANCH,
               COMMIT_SHA,
+              COMMIT_MESSAGE,
+              SERVER_URL,
               JOB_STATUS,
               ACTOR,
               RUN_URL
@@ -83,8 +88,12 @@ jobs:
             const repositoryUrl = `${SERVER_URL}/${REPOSITORY}`;
             const commitUrl = `${repositoryUrl}/commit/${COMMIT_SHA}`;
 
+            const commitMessage = COMMIT_MESSAGE
+              .split("\n")[0]
+              .slice(0, 500);
+
             const payload = {
-              text: `${status.emoji} ${status.title}: ${REPOSITORY} (${REF_NAME})`,
+              text: `${status.emoji} ${status.title}: ${REPOSITORY} (${TARGET_BRANCH})`,
               attachments: [
                 {
                   color: status.color,
@@ -103,8 +112,10 @@ jobs:
                         type: "mrkdwn",
                         text: [
                           `*Repository:* <${repositoryUrl}|${REPOSITORY}>`,
-                          `*Branch / Ref:* \`${REF_NAME}\``,
+                          `*Target Branch:* \`${TARGET_BRANCH}\``,
+                          `*Triggered Ref:* \`${REF_NAME}\``,
                           `*Commit:* <${commitUrl}|\`${COMMIT_SHA.slice(0, 7)}\`>`,
+                          `*Commit Message:* ${commitMessage}`,
                           `*Triggered by:* ${ACTOR}`
                         ].join("\n")
                       }
@@ -151,4 +162,3 @@ jobs:
             process.exitCode = 1;
           });
           NODE
-
