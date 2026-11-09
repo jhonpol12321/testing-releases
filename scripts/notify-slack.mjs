@@ -196,7 +196,7 @@ if (statusConfig.note) {
 }
 
 const payload = {
-  text: `${statusConfig.emoji} ${statusConfig.title}: ${REPOSITORY} (${effectiveBranch})`,
+  text: `${REPOSITORY} (${effectiveBranch})`,
   attachments: [
     {
       color: statusConfig.color,
