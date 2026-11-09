@@ -1,3 +1,9 @@
+## [1.3.1](https://github.com/jhonpol12321/testing-releases/compare/v1.3.0...v1.3.1) (2026-11-09)
+
+### Bug Fixes
+
+* **ci:** fix slack false-positive notification and commit-analyzer docs rule ([63fc74b](https://github.com/jhonpol12321/testing-releases/commit/63fc74bd5fb60a91f0ed69e960f84350022571bd))
+
 ## [1.3.0](https://github.com/jhonpol12321/testing-releases/compare/v1.2.0...v1.3.0) (2026-11-09)
 
 ### Features
